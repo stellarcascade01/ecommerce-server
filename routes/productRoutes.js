@@ -4,7 +4,27 @@ const router = express.Router();
 const Product = require('../models/Product');
 const authMiddleware = require('../middleware/authMiddleware');
 const multer = require('multer');
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const cloudinary = require('cloudinary').v2;
 const path = require('path');
+
+// Cloudinary config
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'ecommerce-products',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'gif'],
+    transformation: [{ width: 600, height: 600, crop: 'limit' }]
+  }
+});
+
+const upload = multer({ storage });
 
 // --- Reviews ---
 // Get reviews for a product
@@ -60,15 +80,7 @@ router.get('/:id/recommend', async (req, res) => {
 //routes/productRoutes.js
 console.log('🔌 productRoutes module loaded');
 
-// Set up multer for file uploads
-const upload = multer({
-  dest: path.join(__dirname, '../uploads/'),
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) cb(null, true);
-    else cb(new Error('Only image files are allowed!'));
-  }
-});
+
 
 // Admin-only middleware
 const adminMiddleware = (req, res, next) => {
@@ -79,13 +91,9 @@ const adminMiddleware = (req, res, next) => {
 // PATCH: Update product stock/quantity (admin only)
 router.patch('/:id', authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const { stock } = req.body;
-    if (typeof stock !== 'number' && typeof stock !== 'string') {
-      return res.status(400).json({ message: 'Invalid stock value' });
-    }
     const product = await Product.findByIdAndUpdate(
       req.params.id,
-      { stock: Number(stock) },
+      req.body,
       { new: true }
     );
     if (!product) return res.status(404).json({ message: 'Product not found' });
@@ -214,18 +222,19 @@ router.get('/:id', async (req, res) => {
 });
 
 
-// Create a new product with image upload
+// Create a new product with image upload (Cloudinary)
 router.post('/', authMiddleware, upload.single('imageFile'), async (req, res) => {
   console.log('📝 POST /api/products hit');
   console.log('🛒 Request Body:', req.body);
-  if (req.file) {
-    console.log('📸 Uploaded file:', req.file.filename);
+  let imageUrl = '';
+  if (req.file && req.file.path) {
+    imageUrl = req.file.path; // Cloudinary URL
   }
   const product = new Product({
     name: req.body.name,
     category: req.body.category,
     price: req.body.price,
-    image: req.file ? '/uploads/' + req.file.filename : '', // store file path
+    image: imageUrl,
     description: req.body.description,
     stock: req.body.stock,
     approved: false, // explicitly mark as pending

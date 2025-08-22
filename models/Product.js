@@ -5,7 +5,7 @@ const productSchema = new mongoose.Schema({
   name: String,
   category: String,
   price: Number,
-  image: String,
+  image: String, // Cloudinary URL
   description: String,
   stock: Number,
   approved: {
