@@ -33,7 +33,7 @@ app.use('/api/orders', orderRoutes);
 
 // Serve static frontend files from client folder
 app.use(express.static(path.join(__dirname, '../client'))); 
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Connect to MongoDB and start server
 mongoose.connect(process.env.MONGO_URI)
@@ -45,3 +45,12 @@ mongoose.connect(process.env.MONGO_URI)
   })
   .catch((err) => console.error('MongoDB connection error:', err));
 
+const path = require('path');
+
+// Serve frontend static files
+app.use(express.static(path.join(__dirname, '../client')));
+
+// Redirect root URL to home.html
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, '../client/home.html'));
+});
